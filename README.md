@@ -1,4 +1,4 @@
 # YourSQL
 A bash based Database Management System
 
-by Mahmoud Elfiky
+by Mahmoud Elfiky and Abdallah Habsa
