@@ -2,7 +2,6 @@
 
 TABLE_DIR="$HOME/YourSQL"
 
-# إنشاء المجلد لو مش موجود
 mkdir -p "$TABLE_DIR"
 
 while true
