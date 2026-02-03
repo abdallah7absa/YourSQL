@@ -1,7 +1,9 @@
 #!/bin/bash
 
-TABLE_DIR="$HOME/YourSQL_Table"
-mkdir -p "$TABLE_DIR"
+echo hi from Menu_Table.sh this is my database $CurrentDB
+
+TABLE_DIR=$CurrentDB
+# mkdir -p "$TABLE_DIR"
 
 # Validate name (table/column)
 validate_name() {
@@ -15,7 +17,7 @@ validate_name() {
 while true
 do
     choice=$(zenity --list \
-        --title="YourSQL Menu" \
+        --title="YourSQL" \
         --text="Choose an option" \
         --column="Menu" \
         --width=400 \
@@ -144,10 +146,11 @@ do
             
             # Create metadata file
             cols_json=$(IFS=,; echo "${columns[*]}")
-            echo "{\"columns\":[$cols_json],\"primary_key\":$pk_col}" > "$TABLE_DIR/$table_name.meta"
+            touch $TABLE_DIR/$table_name.meta
+            echo "{\"columns\":[$cols_json],\"primary_key\":$pk_col}" > $TABLE_DIR/$table_name.meta
             
             # Create empty data file
-            touch "$TABLE_DIR/$table_name.data"
+            touch $TABLE_DIR/$table_name.data
             
             zenity --info \
                 --title="Success" \
@@ -262,7 +265,7 @@ do
                 --text="Are you sure you want to exit?" \
                 --width=300
             if [ $? -eq 0 ]; then
-                exit 0
+                . ./main.sh
             fi
             ;;
     esac
