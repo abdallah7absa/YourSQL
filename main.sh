@@ -22,7 +22,7 @@ case $selection in
         clear;
         USER_INPUT=$(zenity --entry --title="Database Using" --text="Enter Database Name:")
         CurrentDB=~/Documents/YourSQL/$USER_INPUT && zenity --info --text="Using $USER_INPUT Database" || zenity --error --text="No such database"
-        PS1="$USER_INPUT"
+        PS1="$USER_INPUT> "
         . ./Menu_Table.sh
         ;;
     "Drop Database")

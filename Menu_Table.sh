@@ -2,6 +2,19 @@
 
 echo hi from Menu_Table.sh this is my database $CurrentDB
 
+typeof() {
+    local value="$1"
+    if [[ $value =~ ^[+-]?[0-9]+$ ]]; then
+        echo "int"
+    elif [[ $value =~ ^[+-]?[0-9]+\.$ ]]; then
+        echo "string"
+    elif [[ $value =~ ^[+-]?[0-9]+\.?[0-9]*$ ]]; then
+        echo "float"
+    else
+        echo "string"
+    fi
+}
+
 TABLE_DIR=$CurrentDB
 # mkdir -p "$TABLE_DIR"
 
@@ -25,179 +38,133 @@ do
         "Create Table" \
         "List Tables" \
         "Drop Table" \
+        "Insert Into Table"\
+        "Select From Table"\
+        "Delete From Table"\
+        "Update Table"\
         "Exit")
     
     case "$choice" in
-        "Create Table")
-            # Get table name
-            table_name=$(zenity --entry \
-                --title="Create Table" \
-                --text="Enter table name:" \
-                --width=400)
-            
-            if [ -z "$table_name" ]; then
-                zenity --error --text="Table name cannot be empty" --width=300
-                continue
-            fi
-            
-            if ! validate_name "$table_name"; then
-                zenity --error \
-                    --text="Invalid table name!\nMust start with letter and contain only letters, numbers, and underscores." \
-                    --width=400
-                continue
-            fi
-            
-            if [ -f "$TABLE_DIR/$table_name.data" ]; then
-                zenity --error --text="Table '$table_name' already exists" --width=300
-                continue
-            fi
-            
-            # Define columns
-            declare -a columns
-            declare -a col_names
-            
-            zenity --info \
-                --title="Define Columns" \
-                --text="Now define the columns for table '$table_name'.\n\nClick OK to continue." \
-                --width=400
-            
-            while true; do
-                col_info=$(zenity --forms \
-                    --title="Add Column to '$table_name'" \
-                    --text="Define column (Cancel when done):" \
-                    --add-entry="Column Name" \
-                    --add-combo="Data Type" --combo-values="int|string|float|date" \
-                    --width=400 \
-                    --height=200)
-                
-                # User clicked Cancel - exit loop
-                if [ $? -ne 0 ]; then
-                    break
-                fi
-                
-                col_name=$(echo "$col_info" | cut -d'|' -f1)
-                col_type=$(echo "$col_info" | cut -d'|' -f2)
-                
-                # Both empty - treat as done
-                if [ -z "$col_name" ] && [ -z "$col_type" ]; then
-                    break
-                fi
-                
-                # Only one filled - show error
-                if [ -z "$col_name" ] || [ -z "$col_type" ]; then
-                    zenity --error \
-                        --title="Error" \
-                        --text="Both column name and type are required!" \
-                        --width=400
-                    continue
-                fi
-                
-                if ! validate_name "$col_name"; then
-                    zenity --error \
-                        --title="Error" \
-                        --text="Invalid column name!\nMust start with letter and contain only letters, numbers, and underscores." \
-                        --width=400
-                    continue
-                fi
-                
-                # Check for duplicate column
-                if [[ " ${col_names[*]} " =~ " $col_name " ]]; then
-                    zenity --error \
-                        --title="Error" \
-                        --text="Column '$col_name' already exists!" \
-                        --width=400
-                    continue
-                fi
-                
-                columns+=("{\"name\":\"$col_name\",\"type\":\"$col_type\"}")
-                col_names+=("$col_name")
-            done
-            
-            if [ ${#columns[@]} -eq 0 ]; then
-                zenity --error \
-                    --title="Error" \
-                    --text="At least one column is required!\nTable creation cancelled." \
-                    --width=400
-                continue
-            fi
-            
-            # Ask for primary key
-            pk_list=()
-            pk_list+=("FALSE" "None")
-            for col in "${col_names[@]}"; do
-                pk_list+=("FALSE" "$col")
-            done
-            
-            pk_col=$(zenity --list \
-                --title="Select Primary Key" \
-                --text="Select a primary key column for '$table_name' (optional):" \
-                --radiolist \
-                --column="Select" \
-                --column="Column Name" \
-                --width=400 \
-                --height=500 \
-                "${pk_list[@]}")
-            
-            if [ "$pk_col" == "None" ] || [ -z "$pk_col" ]; then
-                pk_col="null"
-            else
-                pk_col="\"$pk_col\""
-            fi
-            
-            # Create metadata file
-            cols_json=$(IFS=,; echo "${columns[*]}")
-            touch $TABLE_DIR/$table_name.meta
-            echo "{\"columns\":[$cols_json],\"primary_key\":$pk_col}" > $TABLE_DIR/$table_name.meta
-            
-            # Create empty data file
-            touch $TABLE_DIR/$table_name.data
-            
-            zenity --info \
-                --title="Success" \
-                --text="Table '$table_name' created successfully!\n\nColumns: ${#columns[@]}\nPrimary Key: $(echo $pk_col | tr -d '\"')" \
-                --width=400
-            ;;
+       "Create Table")
+    table_name=$(zenity --entry \
+        --title="Create Table" \
+        --text="Enter table name:")
+
+    [[ -z "$table_name" ]] && continue
+    validate_name "$table_name" || {
+        zenity --error --text="Invalid table name"
+        continue
+    }
+
+    if [ -d "$TABLE_DIR/$table_name" ]; then
+        zenity --error --text="Table already exists"
+        continue
+    fi
+
+    declare -a col_names
+    declare -a col_types
+
+    zenity --info --text="Define columns (Cancel when finished)"
+
+    while true; do
+        col_info=$(zenity --forms \
+            --title="Add Column" \
+            --add-entry="Column Name" \
+            --add-combo="Data Type" --combo-values="int|string|float|date")
+
+        [[ $? -ne 0 ]] && break
+
+        col_name=$(cut -d'|' -f1 <<< "$col_info")
+        col_type=$(cut -d'|' -f2 <<< "$col_info")
+
+        [[ -z "$col_name" || -z "$col_type" ]] && continue
+        validate_name "$col_name" || continue
+
+        [[ " ${col_names[*]} " =~ " $col_name " ]] && {
+            zenity --error --text="Column already exists"
+            continue
+        }
+
+        col_names+=("$col_name")
+        col_types+=("$col_type")
+    done
+
+    if [ ${#col_names[@]} -eq 0 ]; then
+        zenity --error --text="At least one column required"
+        continue
+    fi
+
+    # ===== Select Primary Key =====
+    pk_list=()
+    for col in "${col_names[@]}"; do
+        pk_list+=("FALSE" "$col")
+    done
+
+    pk_col=$(zenity --list \
+        --title="Primary Key" \
+        --text="Select Primary Key (will be first and start with _)" \
+        --radiolist \
+        --column="Select" \
+        --column="Column" \
+        "${pk_list[@]}")
+
+    [[ -z "$pk_col" ]] && {
+        zenity --error --text="Primary Key is required"
+        continue
+    }
+
+    # ===== Create table folder =====
+    mkdir -p "$TABLE_DIR/$table_name"
+    meta_file="$TABLE_DIR/$table_name/.meta"
+    data_file="$TABLE_DIR/$table_name/$table_name.db"
+
+    # ===== Write META =====
+    # Primary key first with _
+    for i in "${!col_names[@]}"; do
+        if [ "${col_names[$i]}" == "$pk_col" ]; then
+            echo "_${col_names[$i]}:${col_types[$i]}" > "$meta_file"
+        fi
+    done
+
+    # Other columns
+    for i in "${!col_names[@]}"; do
+        if [ "${col_names[$i]}" != "$pk_col" ]; then
+            echo "${col_names[$i]}:${col_types[$i]}" >> "$meta_file"
+        fi
+    done
+
+    touch "$data_file"
+
+    zenity --info --text="Table '$table_name' created successfully"
+;;
+
             
         "List Tables")
-            # Find all .data files
-            tables=($(find "$TABLE_DIR" -maxdepth 1 -type f -name "*.data" -exec basename {} .data \; 2>/dev/null | sort))
+            # Find table folders
+            tables=$(find "$TABLE_DIR" -maxdepth 1 -type d ! -path "$TABLE_DIR" -exec basename {} \; 2>/dev/null | sort)
             
-            if [ ${#tables[@]} -eq 0 ]; then
-                zenity --info \
-                    --title="List Tables" \
-                    --text="No tables found.\n\nCreate a table first!" \
-                    --width=400
+            if [ -z "$tables" ]; then
+                zenity --info --text="No tables found.\n\nCreate a table first!"
             else
-                # Build table information for zenity --list
                 table_data=()
-                for table in "${tables[@]}"; do
-                    if [ -f "$TABLE_DIR/$table.data" ] && [ -f "$TABLE_DIR/$table.meta" ]; then
-                        row_count=$(wc -l < "$TABLE_DIR/$table.data" 2>/dev/null || echo "0")
-                        col_count=$(grep -o '"name"' "$TABLE_DIR/$table.meta" 2>/dev/null | wc -l)
-                        pk=$(grep -o '"primary_key":"[^"]*"' "$TABLE_DIR/$table.meta" 2>/dev/null | cut -d'"' -f4)
-                        
-                        if [ -z "$pk" ] || [ "$pk" == "null" ]; then
-                            pk="None"
-                        fi
-                        
-                        table_data+=("$table" "$row_count" "$col_count" "$pk")
+                for table in $tables; do
+                    if [ -f "$TABLE_DIR/$table/$table.db" ]; then
+                        rows=$(wc -l < "$TABLE_DIR/$table/$table.db" 2>/dev/null || echo "0")
+                        cols=$(grep -c ":" "$TABLE_DIR/$table/.meta" 2>/dev/null || echo "0")
+                        table_data+=("$table" "$rows" "$cols")
                     fi
                 done
                 
                 if [ ${#table_data[@]} -eq 0 ]; then
-                    zenity --info \
-                        --title="List Tables" \
-                        --text="No valid tables found." \
-                        --width=400
+                    zenity --info --text="No tables found"
                 else
                     zenity --list \
-                        --title="YourSQL - All Tables" \
-                        --text="List of all tables:" \
+                        --title="All Tables in $(basename $CurrentDB)" \
+                        --text="List of tables:" \
                         --column="Table Name" \
                         --column="Rows" \
                         --column="Columns" \
-                        --column="Primary Key" \
-                        --width=700 \
+                        --width=500 \
                         --height=400 \
                         "${table_data[@]}"
                 fi
@@ -205,60 +172,147 @@ do
             ;;
             
         "Drop Table")
-            # Find all .data files
-            tables=($(find "$TABLE_DIR" -maxdepth 1 -type f -name "*.data" -exec basename {} .data \; 2>/dev/null | sort))
+            # Find table folders
+            tables=$(find "$TABLE_DIR" -maxdepth 1 -type d ! -path "$TABLE_DIR" -exec basename {} \; 2>/dev/null | sort)
             
-            if [ ${#tables[@]} -eq 0 ]; then
-                zenity --error \
-                    --title="Error" \
-                    --text="No tables available to drop!" \
-                    --width=400
+            if [ -z "$tables" ]; then
+                zenity --error --text="No tables to drop"
             else
-                # Build radio list
                 table_list=()
-                for table in "${tables[@]}"; do
-                    if [ -f "$TABLE_DIR/$table.data" ]; then
-                        row_count=$(wc -l < "$TABLE_DIR/$table.data" 2>/dev/null || echo "0")
-                        table_list+=("FALSE" "$table" "$row_count rows")
-                    fi
+                for table in $tables; do
+                    rows=$(wc -l < "$TABLE_DIR/$table/$table.db" 2>/dev/null || echo "0")
+                    table_list+=("FALSE" "$table" "$rows rows")
                 done
                 
-                if [ ${#table_list[@]} -eq 0 ]; then
-                    zenity --error \
-                        --title="Error" \
-                        --text="No tables available!" \
+                selected=$(zenity --list \
+                    --title="Drop Table" \
+                    --text="Select table to drop:" \
+                    --radiolist \
+                    --column="" \
+                    --column="Table Name" \
+                    --column="Info" \
+                    --width=500 \
+                    --height=350 \
+                    "${table_list[@]}")
+                
+                if [ -n "$selected" ]; then
+                    zenity --question \
+                        --title="Confirm Drop" \
+                        --text="Drop table '$selected'?\n\nAll data will be deleted!\n\nThis cannot be undone!" \
                         --width=400
-                else
-                    selected=$(zenity --list \
-                        --title="Drop Table" \
-                        --text="Select a table to drop:" \
-                        --radiolist \
-                        --column="Select" \
-                        --column="Table Name" \
-                        --column="Info" \
-                        --width=500 \
-                        --height=350 \
-                        "${table_list[@]}")
                     
-                    if [ $? -eq 0 ] && [ -n "$selected" ]; then
-                        # Confirmation
-                        zenity --question \
-                            --title="Confirm Drop" \
-                            --text="Are you sure you want to drop table '$selected'?\n\nThis action cannot be undone!" \
-                            --width=400
-                        
-                        if [ $? -eq 0 ]; then
-                            rm -f "$TABLE_DIR/$selected.data" "$TABLE_DIR/$selected.meta"
-                            zenity --info \
-                                --title="Success" \
-                                --text="Table '$selected' dropped successfully!" \
-                                --width=400
-                        fi
+                    if [ $? -eq 0 ]; then
+                        rm -rf "$TABLE_DIR/$selected"
+                        zenity --info --text="Table '$selected' dropped successfully"
                     fi
                 fi
             fi
             ;;
+             
+        "Insert Into Table")
+            echo insert;
+            record=""
+            pk=""
+            USER_INPUT=$(zenity --entry --title="Insert" --text="Enter Table Name:");
+            cd $CurrentDB/$USER_INPUT && insertFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+            while IFS=':' read -r f1 f2
+            do
+                # printf 'name: %s type: %s\n' "$f1" "$f2"
+                if [[ ${f1:0:1} == "_" ]] then
+                    value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter ${f1:1} field:")
+                else
+                    value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter $f1 field:")
+                fi
+                valueType=$(typeof $value)
+                echo the type is $valueType;
+                echo pk data type $f2
+                while [[ $valueType != "$f2" ]]; do
+                    zenity --error --text="Invalide Data Type for $f1, Requied $f2.";
+                    value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter $f1 field:")
+                    valueType=$(typeof $value)
+                done
+                record="${record}${value}|"
+
+                if [[ ${f1:0:1} == "_" ]] then
+                    pk=$value;
+                fi
+            done <"$insertFile/.meta"
+
+            echo ${record::-1} and pk is $pk
+
+            duplicate=0
+
+            while IFS='|' read -r f1 f2
+            do
+                if [[ $pk == $f1 ]] then
+                    duplicate=1
+                fi
+            done <"$insertFile/$USER_INPUT.db"
             
+            if [[ $duplicate == 1 ]] then
+                zenity --error --text="ERROR: Duplicate Primary Key."
+            else
+                echo ${record::-1} >> $insertFile/$USER_INPUT.db && zenity --info --text"User Added Successfully"
+            fi
+
+            ;;
+        "Select From Table")
+            USER_INPUT=$(zenity --entry --title="Select" --text="Enter Table Name:");
+            cd $CurrentDB/$USER_INPUT && selectFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+
+            selectSelection=$(zenity --list --title="Select From Table" --column="Selection" "All" "by primary key")
+
+            case $selectSelection in
+                "All")
+                    clear
+                    columns="|"
+                    while IFS=':' read -r f1 f2
+                    do
+                        if [[ ${f1:0:1} == "_" ]] then
+                            columns="${columns}${f1:1}|"
+                        else
+                            columns="${columns}${f1}|"
+                        fi
+                    done <"$selectFile/.meta" 
+                    echo "------------------------------------------------"
+                    echo ${columns}
+                    echo "------------------------------------------------" 
+                    while IFS= read -r line
+                    do
+                        echo "|$line|"
+                    echo "------------------------------------------------"
+                    done <"$selectFile/$USER_INPUT.db"
+
+                    ;;
+                "by primary key")
+                    clear
+                    pk=$(zenity --entry --title="Select" --text="Enter Primary Key:");
+                    columns="|"
+                    while IFS=':' read -r f1 f2
+                    do
+                        if [[ ${f1:0:1} == "_" ]] then
+                            columns="${columns}${f1:1}|"
+                        else
+                            columns="${columns}${f1}|"
+                        fi
+                    done <"$selectFile/.meta" 
+                    echo "------------------------------------------------"
+                    echo ${columns}
+                    echo "------------------------------------------------" 
+                    awk -v var="$pk" -F "|" '{if($1 == var) {print $0;}}' $selectFile/$USER_INPUT.db
+                    echo "------------------------------------------------"
+                ;;
+                *)
+
+                ;;
+            esac
+            ;;
+        "Delete From Table")
+            echo delete;
+            ;;
+        "Update Table")
+            echo update;
+            ;;
         "Exit"|*)
             zenity --question \
                 --title="Exit YourSQL" \
