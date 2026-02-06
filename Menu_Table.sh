@@ -210,7 +210,6 @@ do
             ;;
              
         "Insert Into Table")
-            echo insert;
             record=""
             pk=""
             USER_INPUT=$(zenity --entry --title="Insert" --text="Enter Table Name:");
@@ -254,7 +253,6 @@ do
             else
                 echo ${record::-1} >> $insertFile/$USER_INPUT.db && zenity --info --text"User Added Successfully"
             fi
-
             ;;
         "Select From Table")
             USER_INPUT=$(zenity --entry --title="Select" --text="Enter Table Name:");
@@ -313,11 +311,41 @@ do
             t=$(mktemp)
             awk -v var="$pk" -F "|" '$1 != var' $selectFile/$USER_INPUT.db >"$t" && mv "$t" $selectFile/$USER_INPUT.db
             zenity --info --text="Deleted reocrd with primary key $pk"
-
-
             ;;
         "Update Table")
-            echo update;
+            newRecord=""
+            updatePk=""
+            USER_INPUT=$(zenity --entry --title="Update" --text="Enter Table Name:");
+            cd $CurrentDB/$USER_INPUT && updateFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+
+            updatePk=$(zenity --entry --title="Update" --text="Enter Primary Key:");
+
+            while IFS=':' read -r f1 f2
+            do
+                if [[ ${f1:0:1} == "_" ]] then
+                    value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter new ${f1:1} field:")
+                else
+                    value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter new $f1 field:")
+                fi
+                valueType=$(typeof $value)
+                echo the type is $valueType;
+                echo pk data type $f2
+                while [[ $valueType != "$f2" ]]; do
+                    zenity --error --text="Invalide Data Type for $f1, Requied $f2.";
+                    value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter $f1 field:")
+                    valueType=$(typeof $value)
+                done
+                newRecord="${newRecord}${value}|"
+
+                if [[ ${f1:0:1} == "_" ]] then
+                    pk=$value;
+                fi
+            done <"$updateFile/.meta"
+            # t=$(mktemp)
+            # awk -v var="$updatePk" -v newrecord="${newRecord::-1}" -F "|" '{if($1==var){gsub($0, newrecord);} print $0;}' $updateFile/$USER_INPUT.db
+            #  >"$t" && mv "$t" $updateFile/$USER_INPUT.db
+            # zenity --info --text="Updated reocrd with primary key $updatePk"
+            # sed -i "s/$//g"
             ;;
         "Exit"|*)
             zenity --question \
