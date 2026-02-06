@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo hi from Menu_Table.sh this is my database $CurrentDB
+# echo hi from Menu_Table.sh this is my database $CurrentDB
 
 typeof() {
     local value="$1"
@@ -16,9 +16,7 @@ typeof() {
 }
 
 TABLE_DIR=$CurrentDB
-# mkdir -p "$TABLE_DIR"
 
-# Validate name (table/column)
 validate_name() {
     local name="$1"
     if [[ ! "$name" =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
@@ -42,103 +40,101 @@ do
         "Select From Table"\
         "Delete From Table"\
         "Update Table"\
-        "Exit")
+        "Disconnect Database")
     
     case "$choice" in
-       "Create Table")
-    table_name=$(zenity --entry \
-        --title="Create Table" \
-        --text="Enter table name:")
+        "Create Table")
+            table_name=$(zenity --entry \
+                --title="Create Table" \
+                --text="Enter table name:")
 
-    [[ -z "$table_name" ]] && continue
-    validate_name "$table_name" || {
-        zenity --error --text="Invalid table name"
-        continue
-    }
+            [[ -z "$table_name" ]] && continue
+            validate_name "$table_name" || {
+                zenity --error --text="Invalid table name"
+                continue
+            }
 
-    if [ -d "$TABLE_DIR/$table_name" ]; then
-        zenity --error --text="Table already exists"
-        continue
-    fi
+            if [ -d "$TABLE_DIR/$table_name" ]; then
+                zenity --error --text="Table already exists"
+                continue
+            fi
 
-    declare -a col_names
-    declare -a col_types
+            declare -a col_names
+            declare -a col_types
 
-    zenity --info --text="Define columns (Cancel when finished)"
+            zenity --info --text="Define columns (Cancel when finished)"
 
-    while true; do
-        col_info=$(zenity --forms \
-            --title="Add Column" \
-            --add-entry="Column Name" \
-            --add-combo="Data Type" --combo-values="int|string|float|date")
+            while true; do
+                col_info=$(zenity --forms \
+                    --title="Add Column" \
+                    --add-entry="Column Name" \
+                    --add-combo="Data Type" --combo-values="int|string|float|date")
 
-        [[ $? -ne 0 ]] && break
+                [[ $? -ne 0 ]] && break
 
-        col_name=$(cut -d'|' -f1 <<< "$col_info")
-        col_type=$(cut -d'|' -f2 <<< "$col_info")
+                col_name=$(cut -d'|' -f1 <<< "$col_info")
+                col_type=$(cut -d'|' -f2 <<< "$col_info")
 
-        [[ -z "$col_name" || -z "$col_type" ]] && continue
-        validate_name "$col_name" || continue
+                [[ -z "$col_name" || -z "$col_type" ]] && continue
+                validate_name "$col_name" || continue
 
-        [[ " ${col_names[*]} " =~ " $col_name " ]] && {
-            zenity --error --text="Column already exists"
-            continue
-        }
+                [[ " ${col_names[*]} " =~ " $col_name " ]] && {
+                    zenity --error --text="Column already exists"
+                    continue
+                }
 
-        col_names+=("$col_name")
-        col_types+=("$col_type")
-    done
+                col_names+=("$col_name")
+                col_types+=("$col_type")
+            done
 
-    if [ ${#col_names[@]} -eq 0 ]; then
-        zenity --error --text="At least one column required"
-        continue
-    fi
+            if [ ${#col_names[@]} -eq 0 ]; then
+                zenity --error --text="At least one column required"
+                continue
+            fi
 
-    # ===== Select Primary Key =====
-    pk_list=()
-    for col in "${col_names[@]}"; do
-        pk_list+=("FALSE" "$col")
-    done
+            # ===== Select Primary Key =====
+            pk_list=()
+            for col in "${col_names[@]}"; do
+                pk_list+=("FALSE" "$col")
+            done
 
-    pk_col=$(zenity --list \
-        --title="Primary Key" \
-        --text="Select Primary Key (will be first and start with _)" \
-        --radiolist \
-        --column="Select" \
-        --column="Column" \
-        "${pk_list[@]}")
+            pk_col=$(zenity --list \
+                --title="Primary Key" \
+                --text="Select Primary Key (will be first and start with _)" \
+                --radiolist \
+                --column="Select" \
+                --column="Column" \
+                "${pk_list[@]}")
 
-    [[ -z "$pk_col" ]] && {
-        zenity --error --text="Primary Key is required"
-        continue
-    }
+            [[ -z "$pk_col" ]] && {
+                zenity --error --text="Primary Key is required"
+                continue
+            }
 
-    # ===== Create table folder =====
-    mkdir -p "$TABLE_DIR/$table_name"
-    meta_file="$TABLE_DIR/$table_name/.meta"
-    data_file="$TABLE_DIR/$table_name/$table_name.db"
+            # ===== Create table folder =====
+            mkdir -p "$TABLE_DIR/$table_name"
+            meta_file="$TABLE_DIR/$table_name/.meta"
+            data_file="$TABLE_DIR/$table_name/$table_name.db"
 
-    # ===== Write META =====
-    # Primary key first with _
-    for i in "${!col_names[@]}"; do
-        if [ "${col_names[$i]}" == "$pk_col" ]; then
-            echo "_${col_names[$i]}:${col_types[$i]}" > "$meta_file"
-        fi
-    done
+            # ===== Write META =====
+            # Primary key first with _
+            for i in "${!col_names[@]}"; do
+                if [ "${col_names[$i]}" == "$pk_col" ]; then
+                    echo "_${col_names[$i]}:${col_types[$i]}" > "$meta_file"
+                fi
+            done
 
-    # Other columns
-    for i in "${!col_names[@]}"; do
-        if [ "${col_names[$i]}" != "$pk_col" ]; then
-            echo "${col_names[$i]}:${col_types[$i]}" >> "$meta_file"
-        fi
-    done
+            # Other columns
+            for i in "${!col_names[@]}"; do
+                if [ "${col_names[$i]}" != "$pk_col" ]; then
+                    echo "${col_names[$i]}:${col_types[$i]}" >> "$meta_file"
+                fi
+            done
 
-    touch "$data_file"
+            touch "$data_file"
 
-    zenity --info --text="Table '$table_name' created successfully"
-;;
-
-            
+            zenity --info --text="Table '$table_name' created successfully"
+            ;;
         "List Tables")
             # Find table folders
             tables=$(find "$TABLE_DIR" -maxdepth 1 -type d ! -path "$TABLE_DIR" -exec basename {} \; 2>/dev/null | sort)
@@ -169,8 +165,7 @@ do
                         "${table_data[@]}"
                 fi
             fi
-            ;;
-            
+            ;;     
         "Drop Table")
             # Find table folders
             tables=$(find "$TABLE_DIR" -maxdepth 1 -type d ! -path "$TABLE_DIR" -exec basename {} \; 2>/dev/null | sort)
@@ -208,7 +203,6 @@ do
                 fi
             fi
             ;;
-             
         "Insert Into Table")
             record=""
             pk=""
@@ -223,8 +217,8 @@ do
                     value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter $f1 field:")
                 fi
                 valueType=$(typeof $value)
-                echo the type is $valueType;
-                echo pk data type $f2
+                # echo the type is $valueType;
+                # echo pk data type $f2
                 while [[ $valueType != "$f2" ]]; do
                     zenity --error --text="Invalide Data Type for $f1, Requied $f2.";
                     value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter $f1 field:")
@@ -237,7 +231,7 @@ do
                 fi
             done <"$insertFile/.meta"
 
-            echo ${record::-1} and pk is $pk
+            # echo ${record::-1} and pk is $pk
 
             duplicate=0
 
@@ -323,13 +317,13 @@ do
             while IFS=':' read -r f1 f2
             do
                 if [[ ${f1:0:1} == "_" ]] then
-                    echo "ال id مش بيتعمله update"
+                    echo updating record of primary key ${f1:1}
                     # value=$(zenity --entry --title="Update $USER_INPUT" --text="Enter new ${f1:1} field:")
                 else
                     value=$(zenity --entry --title="Update $USER_INPUT" --text="Enter new $f1 field:")
                     valueType=$(typeof $value)
-                    echo the type is $valueType;
-                    echo pk data type $f2
+                    # echo the type is $valueType;
+                    # echo pk data type $f2
                     while [[ $valueType != "$f2" ]]; do
                         zenity --error --text="Invalide Data Type for $f1, Requied $f2.";
                         value=$(zenity --entry --title="Update $USER_INPUT" --text="Enter $f1 field:")
@@ -348,15 +342,16 @@ do
             # zenity --info --text="Updated reocrd with primary key $updatePk"
             theRecord=$(grep ${newRecord::-1} $updateFile/$USER_INPUT.db)
             sed -i "s/$theRecord/${newRecord::-1}/g" $updateFile/$USER_INPUT.db
+            # 2|7absa|22 -> 2|7absa|22|2|7absa|22|2|7absa|22
             # awk -v therecord="$theRecord" -v newrecord="${newRecord::-1}" -F "|" '{gsub(therecord, newRecord); print $0}' $updateFile/$USER_INPUT.db >"$t" && mv "$t" $updateFile/$USER_INPUT.db
 
             # echo the record is $theRecord
             # echo new record is ${newRecord::-1}
             ;;
-        "Exit"|*)
+        "Disconnect Database"|*)
             zenity --question \
-                --title="Exit YourSQL" \
-                --text="Are you sure you want to exit?" \
+                --title="Disconnect" \
+                --text="Are you sure you want to Disconnect?" \
                 --width=300
             if [ $? -eq 0 ]; then
                 . ./main.sh
