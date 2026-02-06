@@ -303,12 +303,18 @@ do
                     echo "------------------------------------------------"
                 ;;
                 *)
-
                 ;;
             esac
             ;;
         "Delete From Table")
-            echo delete;
+            USER_INPUT=$(zenity --entry --title="Delete" --text="Enter Table Name:");
+            cd $CurrentDB/$USER_INPUT && selectFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+            pk=$(zenity --entry --title="Delete" --text="Enter Primary Key:");
+            t=$(mktemp)
+            awk -v var="$pk" -F "|" '$1 != var' $selectFile/$USER_INPUT.db >"$t" && mv "$t" $selectFile/$USER_INPUT.db
+            zenity --info --text="Deleted reocrd with primary key $pk"
+
+
             ;;
         "Update Table")
             echo update;
