@@ -323,29 +323,35 @@ do
             while IFS=':' read -r f1 f2
             do
                 if [[ ${f1:0:1} == "_" ]] then
-                    value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter new ${f1:1} field:")
+                    echo "ال id مش بيتعمله update"
+                    # value=$(zenity --entry --title="Update $USER_INPUT" --text="Enter new ${f1:1} field:")
                 else
-                    value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter new $f1 field:")
-                fi
-                valueType=$(typeof $value)
-                echo the type is $valueType;
-                echo pk data type $f2
-                while [[ $valueType != "$f2" ]]; do
-                    zenity --error --text="Invalide Data Type for $f1, Requied $f2.";
-                    value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter $f1 field:")
+                    value=$(zenity --entry --title="Update $USER_INPUT" --text="Enter new $f1 field:")
                     valueType=$(typeof $value)
-                done
-                newRecord="${newRecord}${value}|"
-
+                    echo the type is $valueType;
+                    echo pk data type $f2
+                    while [[ $valueType != "$f2" ]]; do
+                        zenity --error --text="Invalide Data Type for $f1, Requied $f2.";
+                        value=$(zenity --entry --title="Update $USER_INPUT" --text="Enter $f1 field:")
+                        valueType=$(typeof $value)
+                    done
+                fi
                 if [[ ${f1:0:1} == "_" ]] then
-                    pk=$value;
+                    newRecord="${newRecord}${updatePk}|"
+                else
+                    newRecord="${newRecord}${value}|"
                 fi
             done <"$updateFile/.meta"
-            # t=$(mktemp)
-            # awk -v var="$updatePk" -v newrecord="${newRecord::-1}" -F "|" '{if($1==var){gsub($0, newrecord);} print $0;}' $updateFile/$USER_INPUT.db
+            t=$(mktemp)
+            awk -v var="$updatePk" -v newrecord="${newRecord::-1}" -F "|" '{if($1==var){gsub($0, newrecord);} print $0;}' $updateFile/$USER_INPUT.db >"$t" && mv "$t" $updateFile/$USER_INPUT.db
             #  >"$t" && mv "$t" $updateFile/$USER_INPUT.db
             # zenity --info --text="Updated reocrd with primary key $updatePk"
-            # sed -i "s/$//g"
+            theRecord=$(grep ${newRecord::-1} $updateFile/$USER_INPUT.db)
+            sed -i "s/$theRecord/${newRecord::-1}/g" $updateFile/$USER_INPUT.db
+            # awk -v therecord="$theRecord" -v newrecord="${newRecord::-1}" -F "|" '{gsub(therecord, newRecord); print $0}' $updateFile/$USER_INPUT.db >"$t" && mv "$t" $updateFile/$USER_INPUT.db
+
+            # echo the record is $theRecord
+            # echo new record is ${newRecord::-1}
             ;;
         "Exit"|*)
             zenity --question \
