@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # echo hi from Menu_Table.sh this is my database $CurrentDB
-
+#echo
 typeof() {
     local value="$1"
     if [[ $value =~ ^[+-]?[0-9]+$ ]]; then
@@ -207,7 +207,8 @@ do
             record=""
             pk=""
             USER_INPUT=$(zenity --entry --title="Insert" --text="Enter Table Name:");
-            cd $CurrentDB/$USER_INPUT && insertFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+            # cd $CurrentDB/$USER_INPUT && insertFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+            insertFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
             while IFS=':' read -r f1 f2
             do
                 # printf 'name: %s type: %s\n' "$f1" "$f2"
@@ -217,7 +218,7 @@ do
                     value=$(zenity --entry --title="insert into $USER_INPUT" --text="Enter $f1 field:")
                 fi
                 valueType=$(typeof $value)
-                # echo the type is $valueType;
+# echo the type is $valueType;
                 # echo pk data type $f2
                 while [[ $valueType != "$f2" ]]; do
                     zenity --error --text="Invalide Data Type for $f1, Requied $f2.";
@@ -245,13 +246,13 @@ do
             if [[ $duplicate == 1 ]] then
                 zenity --error --text="ERROR: Duplicate Primary Key."
             else
-                echo ${record::-1} >> $insertFile/$USER_INPUT.db && zenity --info --text"User Added Successfully"
+                echo ${record::-1} >> $insertFile/$USER_INPUT.db && zenity --info --text "User Added Successfully"
             fi
             ;;
         "Select From Table")
             USER_INPUT=$(zenity --entry --title="Select" --text="Enter Table Name:");
-            cd $CurrentDB/$USER_INPUT && selectFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
-
+            # cd $CurrentDB/$USER_INPUT && selectFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+            selectFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
             selectSelection=$(zenity --list --title="Select From Table" --column="Selection" "All" "by primary key")
 
             case $selectSelection in
@@ -300,7 +301,8 @@ do
             ;;
         "Delete From Table")
             USER_INPUT=$(zenity --entry --title="Delete" --text="Enter Table Name:");
-            cd $CurrentDB/$USER_INPUT && selectFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+            # cd $CurrentDB/$USER_INPUT && selectFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+            selectFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
             pk=$(zenity --entry --title="Delete" --text="Enter Primary Key:");
             t=$(mktemp)
             awk -v var="$pk" -F "|" '$1 != var' $selectFile/$USER_INPUT.db >"$t" && mv "$t" $selectFile/$USER_INPUT.db
@@ -310,7 +312,8 @@ do
             newRecord=""
             updatePk=""
             USER_INPUT=$(zenity --entry --title="Update" --text="Enter Table Name:");
-            cd $CurrentDB/$USER_INPUT && updateFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+            # cd $CurrentDB/$USER_INPUT && updateFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
+            updateFile=$CurrentDB/$USER_INPUT || zenity --error --text="No such table";
 
             updatePk=$(zenity --entry --title="Update" --text="Enter Primary Key:");
 
@@ -359,3 +362,4 @@ do
             ;;
     esac
 done
+
